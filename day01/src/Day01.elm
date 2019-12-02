@@ -1,32 +1,44 @@
-module Day01 exposing(..)
+module Day01 exposing(netFuel, totalFuel)
 
 import Maybe exposing(Maybe)
 
-{-- part 1 --}
-result1 =
-  List.foldl massToFuelSum1 0 inputAsInts
+type alias Mass = Int
 
-massToFuelSum1 mass seed =
+type alias Fuel = Int
+
+type alias ModuleMasses = List Mass
+
+{-- part 1 --}
+netFuel : Fuel
+netFuel =
+  List.foldl massToNetFuel 0 moduleMasses
+
+massToNetFuel : Mass -> Mass -> Fuel
+massToNetFuel mass seed =
   seed + (massToFuel mass)
 
 {-- part 2 --}
-result2 =
-  List.foldl massToFuelSum2 0 inputAsInts
+totalFuel : Fuel
+totalFuel =
+  List.foldl massToTotalFuel 0 moduleMasses
 
-massToFuelSum2 mass seed =
+massToTotalFuel : Mass -> Mass -> Fuel
+massToTotalFuel mass seed =
   let
     fuel = massToFuel mass
   in
     if fuel < 1 then
       0 
     else
-      seed + fuel + (massToFuelSum2 fuel 0)
+      seed + fuel + (massToTotalFuel fuel 0)
 
 {-- common --}
+massToFuel : Mass -> Fuel
 massToFuel mass =
   (mass // 3) - 2
 
-inputAsInts =
+moduleMasses : ModuleMasses
+moduleMasses =
   input 
     |> String.lines
     |> List.map String.toInt 
