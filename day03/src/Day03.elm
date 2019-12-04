@@ -17,10 +17,197 @@ type Dir
   | Up
   | Down
 
+type Segment 
+  = Horizontal Coordinate Coordinate
+  | Vertical Coordinate Coordinate
+  | ZeroSegment
 
-{-- parts 1 & 2 --}
-part1 : String -> (Maybe Int, Maybe Int)
-part1 raw =
+
+{-- fast but ugly code: parts 1 & 2 --}
+solveNew raw =
+  let
+    lines = String.lines raw
+    wire1 = List.head lines |> Maybe.withDefault ""
+    wire2 = List.drop 1 lines |> List.head |> Maybe.withDefault ""
+
+    segmentsWire1 = segments wire1 
+    segmentsWire2 = segments wire2 
+
+    results = findIntersectionDistances segmentsWire1 segmentsWire2 0 []
+
+    part1 = List.map (\t -> Tuple.first t) results
+      |> List.filter (\i -> i /= 0)
+      |> List.minimum
+
+    part2 = List.map (\t -> Tuple.second t) results
+      |> List.filter (\i -> i /= 0)
+      |> List.minimum
+
+  in
+    (part1, part2)
+
+segments : String -> List Segment
+segments wire =
+  let
+    instructions = String.split "," wire 
+  in
+    segment instructions ZeroSegment []
+
+
+segment : List String -> Segment -> List Segment -> List Segment
+segment instructions segmentLast segmentList =
+  case instructions of
+    [] ->
+      segmentList   
+
+    nextInstruction :: tail ->
+      let
+        instructionSplit = String.uncons nextInstruction
+      in
+        case instructionSplit of
+          Nothing ->
+            segmentList --todo: error handling
+
+          Just (dir, length) ->
+            let 
+              steps = String.toInt length |> Maybe.withDefault 0
+              segmentNext =
+                case segmentLast of
+                  Horizontal _ (xe, ye) ->
+                    Vertical (xe, ye) (newEnd dir steps (xe, ye)) 
+              
+                  Vertical _ (xe, ye) ->
+                    Horizontal (xe, ye) (newEnd dir steps (xe, ye))
+
+                  ZeroSegment ->
+                    if dir == 'U' || dir == 'D' then
+                      Vertical (0, 0) (newEnd dir steps (0, 0))
+                    else if dir == 'L' || dir == 'R' then
+                      Horizontal (0, 0) (newEnd dir steps (0, 0)) 
+                    else 
+                      ZeroSegment
+            in
+              segment tail segmentNext (segmentList ++ [segmentNext])
+
+
+newEnd dir length (x, y) =
+  case dir of
+    'R' -> (x+length, y)   
+
+    'L' -> (x-length, y)
+                  
+    'U' -> (x, y-length)
+
+    'D' -> (x, y+length)            
+    
+    _ -> (x, y) 
+            
+findIntersectionDistances : List Segment -> List Segment -> Int -> List (Int, Int) -> List (Int, Int)
+findIntersectionDistances segments1 segments2 distSeg2 distances =
+  case segments2 of
+    [] ->
+      distances
+  
+    nextSegment :: tail ->
+      case nextSegment of
+        Horizontal (xs, ys) (xe, ye) ->
+          let
+            distSeg2New = distSeg2 + (abs (xs - xe))
+            distancesNew = 
+              distances ++ (findVerticalIntersection (xs, ys) (xe, ye) segments1 0 distSeg2 [])
+          in
+            findIntersectionDistances segments1 tail distSeg2New distancesNew
+          
+    
+        Vertical (xs, ys) (xe, ye) ->
+          let
+            distSeg2New = distSeg2 + (abs (ys - ye)) 
+            distancesNew = 
+              distances ++ (findHorizontalIntersection (xs, ys) (xe, ye) segments1 0 distSeg2 [])
+          in
+            findIntersectionDistances segments1 tail distSeg2New distancesNew
+
+
+        ZeroSegment ->
+          distances
+              
+findVerticalIntersection (hxs, hys) (hxe, hye) segments1 distSeg1 distSeg2 distances =
+  case segments1 of
+    [] ->
+      distances
+        
+    nextSegment :: tail ->
+      case nextSegment of 
+        Vertical (vxs, vys) (vxe, vye) -> 
+          let
+            vStart = min vys vye
+            vEnd = max vys vye
+            vConst = vxs
+            hStart = min hxs hxe
+            hEnd = max hxs hxe
+            hConst = hys
+            distSeg1New = distSeg1 + (abs (vys - vye)) 
+          in
+            if hStart <= vConst && hEnd >= vConst  && vStart <= hConst && vEnd >= hConst then
+              let
+                distanceForCrossing = distSeg2 + (abs (hxs - vConst)) + distSeg1 + (abs (vys - hConst))
+                distancesNew = distances ++ [(((abs hConst) + (abs vConst)), distanceForCrossing)]
+              in
+                findVerticalIntersection (hxs, hys) (hxe, hye) tail distSeg1New distSeg2 distancesNew
+              
+            else
+              findVerticalIntersection (hxs, hys) (hxe, hye) tail distSeg1New distSeg2 distances
+
+        Horizontal (xs, ys) (xe, ye) ->
+          let
+            distSeg1New = distSeg1 + (abs (xs - xe))
+          in
+            findVerticalIntersection (hxs, hys) (hxe, hye) tail distSeg1New distSeg2 distances
+        
+        ZeroSegment -> 
+          findVerticalIntersection (hxs, hys) (hxe, hye) tail distSeg1 distSeg2 distances
+
+
+findHorizontalIntersection (vxs, vys) (vxe, vye) segments1 distSeg1 distSeg2 distances =
+  case segments1 of
+    [] ->
+      distances
+        
+    nextSegment :: tail ->
+      case nextSegment of 
+        Horizontal (hxs, hys) (hxe, hye) -> 
+          let
+            vStart = min vys vye
+            vEnd = max vys vye
+            vConst = vxs
+            hStart = min hxs hxe
+            hEnd = max hxs hxe
+            hConst = hys
+            distSeg1New = distSeg1 + (abs (hxs - hxe))
+          in
+            if hStart <= vConst && hEnd >= vConst  && vStart <= hConst && vEnd >= hConst then
+              let
+                distanceForCrossing = distSeg2 + (abs (vys - hConst)) + distSeg1 + (abs (hxs - vConst))
+                distancesNew = distances ++ [(((abs hConst) + (abs vConst)), distanceForCrossing)]
+              in
+                findHorizontalIntersection (vxs, vys) (vxe, vye) tail distSeg1New distSeg2 distancesNew
+              
+            else
+              findHorizontalIntersection (vxs, vys) (vxe, vye) tail distSeg1New distSeg2 distances
+
+        Vertical (xs, ys) (xe, ye) ->
+          let
+            distSeg1New = distSeg1 + (abs (ys - ye))
+          in
+            findHorizontalIntersection (vxs, vys) (vxe, vye) tail distSeg1New distSeg2 distances
+        
+        ZeroSegment -> 
+          findHorizontalIntersection (vxs, vys) (vxe, vye) tail distSeg1 distSeg2 distances   
+          
+
+{-- original but slow: parts 1 & 2 --}
+solve : String -> (Maybe Int, Maybe Int)
+solve raw =
   let
     lines = String.lines raw
     wire1 = List.head lines |> Maybe.withDefault ""
