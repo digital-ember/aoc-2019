@@ -1,9 +1,6 @@
 module Day03B exposing(..)
 
-import Maybe exposing(Maybe)
-import Dict exposing(Dict)
-import Set exposing(..)
-import Tuple exposing(..)
+import Input exposing(..)
 
 type alias Coordinate = { x : Int, y : Int}
 
@@ -25,9 +22,9 @@ type alias Segment =
   }
 
 {-- faster solution: parts 1 & 2 --}
-solveNew raw =
+solveNew =
   let
-    lines = String.lines raw
+    lines = String.lines input
     wire1 = List.head lines |> Maybe.withDefault ""
     wire2 = List.drop 1 lines |> List.head |> Maybe.withDefault ""
 
