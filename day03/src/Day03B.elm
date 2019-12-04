@@ -4,18 +4,14 @@ import Input exposing(..)
 
 type alias Coordinate = { x : Int, y : Int}
 
-type alias Start = Coordinate
-
-type alias End = Coordinate
-
 type Orientation
   = H 
   | V
   | Zero
 
 type alias Segment = 
-  { start : Start
-  , end : End
+  { start : Coordinate
+  , end : Coordinate
   , orientation : Orientation
   , wireLength : Int
   , segmentLength : Int
